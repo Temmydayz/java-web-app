@@ -1,0 +1,53 @@
+pipeline{
+	agent any
+	tools {
+	maven "maven3.8.5"
+	}
+	stages{
+	 stage('1.clone'){
+	  steps{
+	       sh "echo clonning the latest version of the code"
+	       git branch: 'master', credentialsId: 'Git-Credentials', url:'https://github.com/Temmydayz/java-web-app'
+            sh "echo clonning successful"
+	  }
+	 }
+    stage('2.Build'){
+      steps{
+        sh "echo validation, compilation, testing and package"
+        sh "echo testing successful and ready to package"
+        sh "mvn clean package"
+      }
+    }
+    stage('3.Quality'){
+      steps{
+        sh "echo performing code quality analysis"
+        sh "echo code quality successful and ready to upload"
+        sh "mvn sonar:sonar"
+      }
+    }
+  stage('4.uploadArtifacts'){
+      steps{
+        sh "mvn deploy"
+      }
+    }
+    stage('5.Deploy2UAT'){
+      steps{
+        sh "echo DEPLOYING TO UAT for further testing and validation"
+        sshagent(['agent1-credentials']) {
+        sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@107.23.162.116:/opt/tomcat9/webapps/uatapp.war"
+      }
+    }
+	}
+	 stage('6.Deploy2Prod'){
+      steps{
+        sh "echo DEPLOYING application TO Production"
+        timeout(time:8, unit:'HOURS'){
+        input message: 'Please approve deployment to Production'
+      }
+        sshagent(['agent1-credentials']) {
+        sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@107.23.162.116:/opt/tomcat9/webapps/tessy.war"
+      }
+    }
+  }
+  } 
+}
